@@ -1,0 +1,631 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cripto-Mapa - Maprayés</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <style>
+    :root {
+      --caqui-claro: #A68A64;
+      --azul-grisaceo: #5C6F7A;
+      --verde-oliva: #6B705C;
+      --verde-oliva-hover: #5A5F50;
+      --crema-suave: #F8E9D6;
+      --gris-oscuro: #4A4A4A;
+      --verde-musgo: #6B705C;
+      --amarillo-mostaza: #D4A017;
+      --rojo-apagado: #A8332E;
+    }
+    .notificacion {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      border-radius: 5px;
+      color: var(--crema-suave);
+      z-index: 1000;
+      animation: fadeInOut 3s ease-in-out forwards;
+    }
+    @keyframes fadeInOut {
+      0% { opacity: 0; transform: translateY(-10px); }
+      10% { opacity: 1; transform: translateY(0); }
+      90% { opacity: 1; transform: translateY(0); }
+      100% { opacity: 0; transform: translateY(-10px); }
+    }
+    .notificacion.lino { background: linear-gradient(45deg, #ff4500, #ffa500); }
+    .notificacion.lino::before {
+      content: '';
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: #fff;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      animation: spark 0.5s ease-out infinite;
+    }
+    @keyframes spark {
+      0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      100% { transform: translate(-50%, -50%) scale(3); opacity: 0; }
+    }
+    .notificacion.garbanza-picante { background: linear-gradient(45deg, #ff69b4, #ffb6c1); }
+    .notificacion.garbanza-picante::after {
+      content: '💖';
+      position: absolute;
+      font-size: 10px;
+      animation: floatHeart 1s ease-in-out infinite;
+    }
+    @keyframes floatHeart {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(-20px); opacity: 0; }
+    }
+    .notificacion.garbanza-suave { background: linear-gradient(45deg, #ffc1cc, #ffe4e1); }
+    .notificacion.garbanza-suave::after {
+      content: '🌸';
+      position: absolute;
+      font-size: 10px;
+      animation: fallPetal 1s ease-in-out infinite;
+    }
+    @keyframes fallPetal {
+      0% { transform: translateY(0); opacity: 1; }
+      100% { transform: translateY(20px); opacity: 0; }
+    }
+    .notificacion.yudmiry { background: linear-gradient(45deg, #191970, #483d8b); }
+    .notificacion.yudmiry::before {
+      content: '✨';
+      position: absolute;
+      font-size: 8px;
+      animation: twinkle 0.8s ease-in-out infinite;
+    }
+    @keyframes twinkle {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+    .notificacion.escrimedes { background: linear-gradient(45deg, #8b4513, #deb887); }
+    .notificacion.escrimedes::after {
+      content: '🖌️';
+      position: absolute;
+      font-size: 10px;
+      animation: fadeDust 1s ease-in-out infinite;
+    }
+    @keyframes fadeDust {
+      0% { opacity: 1; }
+      100% { opacity: 0; transform: translateX(10px); }
+    }
+    .notificacion.oithar-vertigo { background: linear-gradient(45deg, #00ced1, #20b2aa); }
+    .notificacion.oithar-vertigo::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background: #fff;
+      animation: swirl 1s ease-in-out infinite;
+    }
+    @keyframes swirl {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .notificacion.oithar-lucidez { background: linear-gradient(45deg, #4682b4, #87ceeb); }
+    .notificacion.oithar-lucidez::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 2px;
+      background: #fff;
+      animation: wave 1s ease-in-out infinite;
+    }
+    @keyframes wave {
+      0% { transform: translateY(0); }
+      50% { transform: translateY(5px); }
+      100% { transform: translateY(0); }
+    }
+    .notificacion.epheron { background: linear-gradient(45deg, #2f4f4f, #708090); }
+    .notificacion.epheron::before {
+      content: '';
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
+      animation: flicker 1s ease-in-out infinite;
+    }
+    @keyframes flicker {
+      0% { opacity: 1; }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; }
+    }
+    .notificacion.triczy { background: linear-gradient(45deg, #800080, #ff00ff); }
+    .notificacion.triczy::before {
+      content: '';
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: #fff;
+      border-radius: 50%;
+      animation: chaoticParticle 0.5s ease-in-out infinite;
+    }
+    @keyframes chaoticParticle {
+      0% { transform: translate(0, 0); opacity: 1; }
+      100% { transform: translate(calc(10px * var(--rand-x)), calc(10px * var(--rand-y))); opacity: 0; }
+    }
+    #qrCanvas { max-width: 200px; margin-top: 10px; }
+    .bg-caqui-claro { background-color: var(--caqui-claro); }
+    .text-crema-suave { color: var(--crema-suave); }
+    .bg-azul-grisaceo { background-color: var(--azul-grisaceo); }
+    .border-gris-oscuro { border-color: var(--gris-oscuro); }
+    .bg-verde-oliva { background-color: var(--verde-oliva); }
+    .hover\:bg-verde-oliva-hover:hover { background-color: var(--verde-oliva-hover); }
+    .bg-verde-musgo { background-color: var(--verde-musgo); }
+    .bg-amarillo-mostaza { background-color: var(--amarillo-mostaza); }
+    .bg-rojo-apagado { background-color: var(--rojo-apagado); }
+    .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; border-radius: 20px; }
+    .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: 0.4s; }
+    input:checked + .slider { background-color: #6B705C; }
+    input:checked + .slider:before { transform: translateX(20px); }
+    .guardian-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px;
+      background-color: var(--azul-grisaceo);
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+<body class="bg-caqui-claro text-crema-suave min-h-screen p-6 flex flex-col">
+  <div class="container mx-auto flex-grow">
+    <div id="notificaciones"></div>
+    <h1 class="text-4xl font-bold text-center mb-6">Cripto-Mapa Maprayés</h1>
+    <div class="flex flex-col space-y-4">
+      <h2 class="text-2xl font-semibold">Secuencia de Guardianes</h2>
+      <div class="flex space-x-2">
+        <select id="guardianSelect" class="p-2 bg-azul-grisaceo border border-gris-oscuro rounded-lg text-crema-suave">
+          <option value="none">Añadir guardián</option>
+          <option value="lino">🔥 Lino Mapray (+1)</option>
+          <option value="garbanza">🎀 Garbanza (±5)</option>
+          <option value="yudmiry">🌌 Yudmiry (+2)</option>
+          <option value="escrimedes">📜 Escrímedes (-3)</option>
+          <option value="oithar">🌀 Oithar (±8)</option>
+          <option value="epheron">🕯️ Ephëron (-9)</option>
+          <option value="triczy">😈 Triczy (±Caótico)</option>
+        </select>
+        <button id="addGuardianBtn" class="px-4 py-2 bg-verde-oliva rounded hover:bg-verde-oliva-hover">Añadir</button>
+      </div>
+      <div id="garbanzaSwitch" class="hidden flex items-center space-x-2">
+        <span>Modo Garbanza:</span>
+        <label class="switch">
+          <input type="checkbox" id="garbanzaMode" checked>
+          <span class="slider"></span>
+        </label>
+        <span id="garbanzaModeLabel">+5 (Picante)</span>
+      </div>
+      <div id="oitharSwitch" class="hidden flex items-center space-x-2">
+        <span>Modo Oithar:</span>
+        <label class="switch">
+          <input type="checkbox" id="oitharMode" checked>
+          <span class="slider"></span>
+        </label>
+        <span id="oitharModeLabel">+8 (Vértigo)</span>
+      </div>
+      <div id="guardianList" class="flex flex-col space-y-2"></div>
+      <h2 class="text-2xl font-semibold mt-4">Cifrado</h2>
+      <textarea id="inputText" class="w-full p-3 bg-azul-grisaceo border border-gris-oscuro rounded-lg text-crema-suave" placeholder="Escribe texto a cifrar..."></textarea>
+      <h2 class="text-2xl font-semibold mt-4">Descifrado</h2>
+      <textarea id="inputMaprayes" class="w-full p-3 bg-azul-grisaceo border border-gris-oscuro rounded-lg text-crema-suave" placeholder="Pega código QR o Maprayés para descifrar..."></textarea>
+      <div class="flex space-x-2">
+        <button id="encodeBtn" class="px-4 py-2 bg-verde-oliva rounded hover:bg-verde-oliva-hover">Cifrar</button>
+        <button id="decodeBtn" class="px-4 py-2 bg-verde-oliva rounded hover:bg-verde-oliva-hover">Descifrar</button>
+        <button id="generateQRBtn" class="px-4 py-2 bg-verde-oliva rounded hover:bg-verde-oliva-hover">Generar QR</button>
+        <button id="clearBtn" class="px-4 py-2 bg-rojo-apagado rounded hover:bg-verde-oliva-hover">Limpiar</button>
+      </div>
+      <textarea id="outputText" class="w-full p-3 bg-azul-grisaceo border border-gris-oscuro rounded-lg text-crema-suave" placeholder="Resultado..."></textarea>
+      <div id="qrCanvas" class="hidden"></div>
+    </div>
+  </div>
+  <footer class="mt-8 py-4 text-center text-crema-suave">
+    <p>Cripto-Mapa Maprayés © 2025 | Creado por Joke-Fu</p>
+  </footer>
+  <script>
+    const alfabeto = {
+      '(1)1':'A','(1)01':'Á','(1)2':'B','(1)3':'C','(1)4':'D','(1)5':'E','(1)05':'É','(1)6':'F','(1)7':'G','(1)8':'H','(1)9':'I','(1)09':'Í',
+      '(2)1':'J','(2)2':'K','(2)3':'L','(2)4':'M','(2)5':'N','(2)6':'Ñ','(2)7':'O','(2)07':'Ó','(2)8':'P','(2)9':'Q','(3)1':'R','(3)2':'S',
+      '(3)3':'T','(3)4':'U','(3)04':'Ú','(3)5':'V','(3)6':'W','(3)7':'X','(3)8':'Y','(3)9':'Z','(4)1':'?','(4)01':'¿','(4)2':'!','(4)02':'¡',
+      '(4)3':'=','(4)4':',','(4)5':';','(4)6':'"','(4)7':')','(4)07':'(','(4)8':'...','(4)9':'*','(5)1':'+','(5)2':'-','(5)3':'÷','(5)4':'×',
+      '(5)5':'√','(5)6':'_','(5)7':'@','(5)8':'π','(5)9':'$','(6)1':'#','(6)2':"'",'(6)3':'%','(6)4':'^','(6)5':'°','(6)6':'/','(6)06':'\\',
+      '(6)7':'>','(6)07':'<','(6)8':'¢','(6)9':'€','(1)3(1)5#':'0','(3)4(2)5#':'1','(1)4(2)7#':'2','(3)3(3)1#':'3','(1)3(3)4#':'4',
+      '(1)3(1)9#':'5','(3)2(1)5#':'6','(3)2(1)9#':'7','(2)7(1)3#':'8','(2)5(3)4#':'9','(0)0':'.','(7)1':'🙂','(7)2':'🙁','(7)3':'😡',
+      '(7)4':'😦','(7)5':'😂','(7)6':'😭','(7)7':'🐱','(7)8':'👍🏼','(7)9':'👎🏼','(8)1':'❤️','(8)2':'😐','(8)3':'😎','(8)4':'🤔','(8)5':'😊',
+      '(8)6':'🧐','(8)7':'😴','(8)8':'🦕','(8)9':'🥳', '||': ' '
+    };
+    const textoAMaprayes = Object.entries(alfabeto).reduce((acc, [clave, valor]) => { acc[valor.toLowerCase()] = clave; return acc; }, {});
+    let guardianSequence = [];
+    const guardianIcons = {
+      lino: '🔥', garbanza: '🎀', yudmiry: '🌌', escrimedes: '📜', oithar: '🌀', epheron: '🕯️', triczy: '😈'
+    };
+    const guardianInitials = {
+      lino: 'LI', garbanza: 'GA', yudmiry: 'YU', escrimedes: 'ES', oithar: 'OI', epheron: 'EP', triczy: 'TR'
+    };
+    const initialToGuardian = {
+      'LI': 'lino', 'GA': 'garbanza', 'YU': 'yudmiry', 'ES': 'escrimedes', 'OI': 'oithar', 'EP': 'epheron', 'TR': 'triczy'
+    };
+
+    function mostrarNotificacion(mensaje, color = 'verde-musgo', guardian = null, isGarbanzaPlus = true, isOitharPlus = true) {
+      const contenedor = document.getElementById('notificaciones');
+      const notif = document.createElement('div');
+      notif.className = `notificacion bg-${color}`;
+      if (guardian) {
+        notif.classList.add(guardian);
+        if (guardian === 'garbanza') notif.classList.add(isGarbanzaPlus ? 'garbanza-picante' : 'garbanza-suave');
+        if (guardian === 'oithar') notif.classList.add(isOitharPlus ? 'oithar-vertigo' : 'oithar-lucidez');
+        notif.style.setProperty('--rand-x', Math.random() * 2 - 1);
+        notif.style.setProperty('--rand-y', Math.random() * 2 - 1);
+      }
+      notif.textContent = mensaje;
+      contenedor.appendChild(notif);
+      setTimeout(() => notif.remove(), 3000);
+    }
+
+    function traducirAMaprayes(texto) {
+      let resultado = [];
+      let caracteresInvalidos = false;
+      for (let palabra of texto.toLowerCase().split(/(?=\s)/)) {
+        let codificada = '';
+        for (let char of palabra.trim()) {
+          const clave = textoAMaprayes[char];
+          if (clave) codificada += clave;
+          else {
+            codificada += '?';
+            caracteresInvalidos = true;
+          }
+        }
+        if (codificada) resultado.push(codificada);
+      }
+      if (caracteresInvalidos) mostrarNotificacion('Caracteres no soportados', 'amarillo-mostaza');
+      return resultado.join('||');
+    }
+
+    function traducirATexto(entrada) {
+      const partes = entrada.split(/\|\|/);
+      let resultado = [];
+      let errores = [];
+      let posicion = 0;
+      for (let parte of partes) {
+        let palabra = '';
+        let i = 0;
+        while (i < parte.length) {
+          let match = null;
+          for (let len = 9; len >= 1; len--) {
+            let sub = parte.slice(i, i + len);
+            if (alfabeto[sub]) { match = sub; break; }
+          }
+          if (match) {
+            palabra += alfabeto[match];
+            i += match.length;
+          } else {
+            let invalid = parte.slice(i, Math.min(i + 5, parte.length));
+            errores.push(`Código '${invalid}' no válido en ${posicion + i}`);
+            palabra += '?';
+            i++;
+          }
+          posicion += match ? match.length : 1;
+        }
+        resultado.push(palabra);
+      }
+      if (errores.length) mostrarNotificacion(`Errores: ${errores.join('; ')}`, 'amarillo-mostaza');
+      return resultado.join(' ').trim();
+    }
+
+    function applyMythicShift(code, character, isGarbanzaPlus = true, isOitharPlus = true, isReverse = false) {
+      const parts = code.split(/\|\|/);
+      let result = [];
+      const alphabet = 'ABCDEFGHIJKLMNÑOPQRSTUVWXYZ';
+      const accentedVowels = 'ÁÉÍÓÚ';
+      const codeMap = {
+        'A': '(1)1', 'Á': '(1)01', 'B': '(1)2', 'C': '(1)3', 'D': '(1)4', 'E': '(1)5', 'É': '(1)05',
+        'F': '(1)6', 'G': '(1)7', 'H': '(1)8', 'I': '(1)9', 'Í': '(1)09', 'J': '(2)1', 'K': '(2)2',
+        'L': '(2)3', 'M': '(2)4', 'N': '(2)5', 'Ñ': '(2)6', 'O': '(2)7', 'Ó': '(2)07', 'P': '(2)8',
+        'Q': '(2)9', 'R': '(3)1', 'S': '(3)2', 'T': '(3)3', 'U': '(3)4', 'Ú': '(3)04', 'V': '(3)5',
+        'W': '(3)6', 'X': '(3)7', 'Y': '(3)8', 'Z': '(3)9'
+      };
+      const triczyShifts = isReverse ? [-6, 4, -1, 4, -3, 2] : [6, -4, 1, -4, 3, -2];
+
+      for (let part of parts) {
+        let shiftedPart = '';
+        let letterIndex = 0;
+        let i = 0;
+        while (i < part.length) {
+          let match = null;
+          for (let len = 9; len >= 1; len--) {
+            let sub = part.slice(i, i + len).trim();
+            if (alfabeto[sub]) { match = sub; break; }
+          }
+          if (match && alfabeto[match]) {
+            let letter = alfabeto[match].toUpperCase();
+            let shift = character === 'triczy' ? triczyShifts[letterIndex++ % triczyShifts.length] :
+                        character === 'lino' ? (isReverse ? -1 : 1) :
+                        character === 'garbanza' ? (isReverse ? (isGarbanzaPlus ? -5 : 5) : (isGarbanzaPlus ? 5 : -5)) :
+                        character === 'yudmiry' ? (isReverse ? -2 : 2) :
+                        character === 'escrimedes' ? (isReverse ? 3 : -3) :
+                        character === 'oithar' ? (isReverse ? (isOitharPlus ? -8 : 8) : (isOitharPlus ? 8 : -8)) :
+                        character === 'epheron' ? (isReverse ? 9 : -9) : 0;
+            if (accentedVowels.includes(letter)) {
+              let index = accentedVowels.indexOf(letter);
+              let newIndex = (index + shift + accentedVowels.length) % accentedVowels.length;
+              let newLetter = accentedVowels[newIndex];
+              shiftedPart += codeMap[newLetter];
+            } else if (alphabet.includes(letter)) {
+              let index = alphabet.indexOf(letter);
+              let newIndex = (index + shift + alphabet.length) % alphabet.length;
+              let newLetter = alphabet[newIndex];
+              shiftedPart += codeMap[newLetter];
+            } else {
+              shiftedPart += match;
+            }
+            i += match.length;
+          } else {
+            shiftedPart += part[i] || '';
+            i++;
+          }
+        }
+        result.push(shiftedPart);
+      }
+      return result.join('||');
+    }
+
+    function applyCriptoMapa(code, sequence, isGarbanzaPlus = true, isOitharPlus = true, isReverse = false) {
+      if (!sequence.length) return code;
+      let currentCode = code;
+      const seq = isReverse ? [...sequence].reverse() : sequence;
+      for (let char of seq) {
+        currentCode = applyMythicShift(currentCode, char, isGarbanzaPlus, isOitharPlus, isReverse);
+      }
+      return currentCode;
+    }
+
+    function updateGuardianList() {
+      const list = document.getElementById('guardianList');
+      list.innerHTML = guardianSequence.map((guardian, index) => `
+        <div class="guardian-item">
+          <span>${guardianIcons[guardian]} ${guardian.charAt(0).toUpperCase() + guardian.slice(1)}</span>
+          <button class="px-2 py-1 bg-rojo-apagado rounded hover:bg-verde-oliva-hover text-sm remove-guardian" data-index="${index}">Eliminar</button>
+        </div>
+      `).join('');
+      document.querySelectorAll('.remove-guardian').forEach(btn => {
+        btn.onclick = () => {
+          guardianSequence.splice(parseInt(btn.dataset.index), 1);
+          updateGuardianList();
+          updateGarbanzaOitharSwitches();
+        };
+      });
+    }
+
+    function updateGarbanzaOitharSwitches() {
+      document.getElementById('garbanzaSwitch').classList.toggle('hidden', !guardianSequence.includes('garbanza'));
+      document.getElementById('oitharSwitch').classList.toggle('hidden', !guardianSequence.includes('oithar'));
+    }
+
+    function encodeText() {
+      const input = document.getElementById('inputText').value.toLowerCase();
+      if (!input) {
+        mostrarNotificacion('Ingresa un texto', 'amarillo-mostaza');
+        return;
+      }
+      if (!guardianSequence.length) {
+        mostrarNotificacion('Añade al menos un guardián', 'amarillo-mostaza');
+        return;
+      }
+      const hasLetters = /[a-záéíóúñ]/i.test(input);
+      if (!hasLetters) {
+        mostrarNotificacion('El texto debe contener letras para cifrar', 'amarillo-mostaza');
+        return;
+      }
+      const isGarbanzaPlus = document.getElementById('garbanzaMode').checked;
+      const isOitharPlus = document.getElementById('oitharMode').checked;
+      let maprayesCode = traducirAMaprayes(input);
+      const encryptedCode = applyCriptoMapa(maprayesCode, guardianSequence, isGarbanzaPlus, isOitharPlus);
+      document.getElementById('outputText').value = encryptedCode;
+      mostrarNotificacion(`Texto cifrado con ${guardianSequence.map(g => guardianInitials[g]).join(', ')}`, 'verde-musgo');
+    }
+
+    function decodeText(input = document.getElementById('inputMaprayes').value, fromQR = false) {
+      if (!input) {
+        mostrarNotificacion('Ingresa un código', 'amarillo-mostaza');
+        return;
+      }
+      let cleanedInput = input;
+      let isGarbanzaPlus = document.getElementById('garbanzaMode').checked;
+      let isOitharPlus = document.getElementById('oitharMode').checked;
+      let tempGuardianSequence = [...guardianSequence];
+      const mythicMatch = input.match(/\[MYTHIC:([^\]]+)\]\s*/);
+      if (mythicMatch) {
+        const guardianEntries = mythicMatch[1].toLowerCase().split(',');
+        const validGuardians = ['lino', 'garbanza', 'yudmiry', 'escrimedes', 'oithar', 'epheron', 'triczy'];
+        const oldInitials = { 'L': 'lino', 'G': 'garbanza', 'Y': 'yudmiry', 'ES': 'escrimedes', 'O': 'oithar', 'EP': 'epheron', 'T': 'triczy' };
+        tempGuardianSequence = [];
+        guardianEntries.forEach(entry => {
+          let name, mode;
+          if (entry.includes(':')) {
+            [name, mode] = entry.split(':');
+          } else {
+            name = entry;
+          }
+          let guardian;
+          if (name.length === 2) {
+            guardian = initialToGuardian[name.toUpperCase()];
+          } else if (name.length === 1) {
+            guardian = oldInitials[name.toUpperCase()];
+          } else {
+            guardian = validGuardians.includes(name) ? name : null;
+          }
+          if (guardian) {
+            tempGuardianSequence.push(guardian);
+            if (guardian === 'garbanza' && mode) {
+              isGarbanzaPlus = mode === '+5';
+              document.getElementById('garbanzaMode').checked = isGarbanzaPlus;
+              document.getElementById('garbanzaModeLabel').textContent = isGarbanzaPlus ? '+5 (Picante)' : '-5 (Suave)';
+            }
+            if (guardian === 'oithar' && mode) {
+              isOitharPlus = mode === '+8';
+              document.getElementById('oitharMode').checked = isOitharPlus;
+              document.getElementById('oitharModeLabel').textContent = isOitharPlus ? '+8 (Vértigo)' : '-8 (Lucidez)';
+            }
+          }
+        });
+        if (tempGuardianSequence.length === 0) {
+          mostrarNotificacion('Secuencia de guardianes inválida', 'amarillo-mostaza');
+          return;
+        }
+        guardianSequence = tempGuardianSequence;
+        updateGuardianList();
+        updateGarbanzaOitharSwitches();
+        mostrarNotificacion(`Secuencia cargada: ${guardianSequence.map(g => guardianInitials[g]).join(', ')}`, 'verde-musgo');
+        cleanedInput = input.replace(mythicMatch[0], '');
+      }
+      if (!tempGuardianSequence.length && !fromQR) {
+        mostrarNotificacion('Añade al menos un guardián', 'amarillo-mostaza');
+        return;
+      }
+      const decryptedCode = applyCriptoMapa(cleanedInput, tempGuardianSequence, isGarbanzaPlus, isOitharPlus, true);
+      const texto = traducirATexto(decryptedCode);
+      document.getElementById('outputText').value = texto;
+      if (fromQR) {
+        mostrarNotificacion(`Código QR descifrado con ${tempGuardianSequence.map(g => guardianInitials[g]).join(', ')}`, 'verde-musgo');
+      } else {
+        mostrarNotificacion(`Texto descifrado con ${tempGuardianSequence.map(g => guardianInitials[g]).join(', ')}`, 'verde-musgo');
+      }
+    }
+
+    function generateQR() {
+      const input = document.getElementById('outputText').value;
+      if (!input) {
+        mostrarNotificacion('No hay código para QR', 'amarillo-mostaza');
+        return;
+      }
+      if (!guardianSequence.length) {
+        mostrarNotificacion('Añade al menos un guardián', 'amarillo-mostaza');
+        return;
+      }
+      const isGarbanzaPlus = document.getElementById('garbanzaMode').checked;
+      const isOitharPlus = document.getElementById('oitharMode').checked;
+      const guardianString = guardianSequence.map(g => {
+        const initial = guardianInitials[g];
+        if (g === 'garbanza') return `${initial}:${isGarbanzaPlus ? '+5' : '-5'}`;
+        if (g === 'oithar') return `${initial}:${isOitharPlus ? '+8' : '-8'}`;
+        return initial;
+      }).join(',');
+      const qrText = `[MYTHIC:${guardianString}] ${input}`;
+      const qrCanvas = document.getElementById('qrCanvas');
+      qrCanvas.innerHTML = '';
+      qrCanvas.classList.remove('hidden');
+      QRCode.toCanvas(qrText, { width: 200 }, (error, canvas) => {
+        if (error) mostrarNotificacion('Error al generar QR', 'rojo-apagado');
+        else {
+          qrCanvas.appendChild(canvas);
+          mostrarNotificacion('Código QR generado', 'verde-musgo');
+        }
+      });
+    }
+
+    function clearFields() {
+      document.getElementById('inputText').value = '';
+      document.getElementById('inputMaprayes').value = '';
+      document.getElementById('outputText').value = '';
+      document.getElementById('qrCanvas').innerHTML = '';
+      document.getElementById('qrCanvas').classList.add('hidden');
+      guardianSequence = [];
+      updateGuardianList();
+      updateGarbanzaOitharSwitches();
+      document.getElementById('garbanzaMode').checked = true;
+      document.getElementById('garbanzaModeLabel').textContent = '+5 (Picante)';
+      document.getElementById('oitharMode').checked = true;
+      document.getElementById('oitharModeLabel').textContent = '+8 (Vértigo)';
+      mostrarNotificacion('Campos limpiados', 'verde-musgo');
+    }
+
+    document.getElementById('addGuardianBtn').onclick = () => {
+      const guardian = document.getElementById('guardianSelect').value;
+      if (guardian === 'none') {
+        mostrarNotificacion('Selecciona un guardián', 'amarillo-mostaza');
+        return;
+      }
+      if (guardianSequence.length >= 5) {
+        mostrarNotificacion('Máximo 5 guardianes', 'amarillo-mostaza');
+        return;
+      }
+      guardianSequence.push(guardian);
+      updateGuardianList();
+      updateGarbanzaOitharSwitches();
+      mostrarNotificacion(`Guardián ${guardianInitials[guardian]} añadido`, null, guardian, document.getElementById('garbanzaMode').checked, document.getElementById('oitharMode').checked);
+    };
+
+    document.getElementById('garbanzaMode').onchange = () => {
+      document.getElementById('garbanzaModeLabel').textContent = document.getElementById('garbanzaMode').checked ? '+5 (Picante)' : '-5 (Suave)';
+    };
+
+    document.getElementById('oitharMode').onchange = () => {
+      document.getElementById('oitharModeLabel').textContent = document.getElementById('oitharMode').checked ? '+8 (Vértigo)' : '-8 (Lucidez)';
+    };
+
+    document.getElementById('inputMaprayes').oninput = function() {
+      const input = this.value;
+      const mythicMatch = input.match(/\[MYTHIC:([^\]]+)\]\s*/);
+      if (mythicMatch) {
+        setTimeout(() => decodeText(input, true), 0);
+      } else {
+        document.getElementById('outputText').value = '';
+      }
+    };
+
+    document.getElementById('encodeBtn').onclick = encodeText;
+    document.getElementById('decodeBtn').onclick = () => decodeText(document.getElementById('inputMaprayes').value, false);
+    document.getElementById('generateQRBtn').onclick = generateQR;
+    document.getElementById('clearBtn').onclick = clearFields;
+  </script>
+</body>
+</html>
